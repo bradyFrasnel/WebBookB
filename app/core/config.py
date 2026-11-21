@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     DEBUG: bool = False
-    CORS_ORIGINS: list[str] = [
+    CORS_ORIGINS: str | list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
@@ -31,14 +31,20 @@ class Settings(BaseSettings):
             return cleaned.replace("postgresql://", "postgresql+psycopg://", 1)
         return cleaned
 
-    @field_validator("CORS_ORIGINS", mode="before")
+    @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
-    def normaliser_cors_origins(cls, value: Any) -> Any:
+    def normaliser_cors_origins(cls, value: str | list[str]) -> list[str]:
         if isinstance(value, str):
             cleaned = value.strip()
             if cleaned.startswith("["):
                 try:
-                    return json.loads(cleaned)
+                    parsed = json.loads(cleaned)
+                    if isinstance(parsed, list):
+                        return [
+                            str(origin).strip().rstrip("/")
+                            for origin in parsed
+                            if str(origin).strip()
+                        ]
                 except json.JSONDecodeError:
                     pass
             return [
@@ -46,7 +52,11 @@ class Settings(BaseSettings):
                 for origin in cleaned.split(",")
                 if origin.strip()
             ]
-        return value
+        return [
+            str(origin).strip().rstrip("/")
+            for origin in value
+            if str(origin).strip()
+        ]
 
     model_config = SettingsConfigDict(
         env_file=".env",
