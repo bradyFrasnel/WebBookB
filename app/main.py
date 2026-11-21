@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
 from app.database.connection import engine
@@ -48,6 +50,19 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
+
+@app.exception_handler(OperationalError)
+async def database_operational_error_handler(_request: Request, _exc: OperationalError):
+    """Intercepte une panne ou coupure temporaire de PostgreSQL/Neon et renvoie un 503 propre."""
+    engine.dispose()
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": "La base de données est temporairement indisponible ou en cours de réveil. Veuillez réessayer dans quelques secondes."
+        },
+    )
+
+
 app.include_router(auth.router)
 app.include_router(utilisateur.router)
 app.include_router(categorie.router)
@@ -64,9 +79,11 @@ def accueil():
 
 @app.get("/test-db", tags=["Santé"])
 def tester_base_de_donnees():
+    migrations_ok = run_startup_migrations(max_retries=2, retry_delay=1.0)
     with engine.connect() as connexion:
         resultat = connexion.execute(text("SELECT 1"))
         return {
             "database": "PostgreSQL",
             "connexion": resultat.scalar_one(),
+            "tables_initialisees": migrations_ok,
         }

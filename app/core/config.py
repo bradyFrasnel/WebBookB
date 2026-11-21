@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     def normaliser_database_url(cls, value: Any) -> Any:
         if not isinstance(value, str):
             return value
-        cleaned = value.strip()
+        # Supprime tout espace ou saut de ligne accidentel lors d'un copier-coller
+        cleaned = "".join(value.split())
         if cleaned.startswith("postgres://"):
             return cleaned.replace("postgres://", "postgresql+psycopg://", 1)
         if cleaned.startswith("postgresql://"):
