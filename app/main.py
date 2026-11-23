@@ -73,12 +73,17 @@ app.include_router(historique.router)
 app.include_router(statistique.router)
 
 
-@app.get("/", tags=["Santé"])
+@app.api_route("/", methods=["GET", "HEAD"], tags=["Santé"])
 def accueil():
-    return {"message": f"{settings.APP_NAME} API fonctionne !"}
+    return {"status": "ok", "message": f"{settings.APP_NAME} API fonctionne !"}
 
 
-@app.get("/test-db", tags=["Santé"])
+@app.api_route("/health", methods=["GET", "HEAD"], tags=["Santé"])
+def health_check():
+    return {"status": "healthy", "app": settings.APP_NAME}
+
+
+@app.api_route("/test-db", methods=["GET", "HEAD"], tags=["Santé"])
 def tester_base_de_donnees():
     migrations_ok = run_startup_migrations(max_retries=2, retry_delay=1.0)
     with engine.connect() as connexion:
