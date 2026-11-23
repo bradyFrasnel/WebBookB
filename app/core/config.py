@@ -12,8 +12,12 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 30
-    RESEND_API_KEY: str = ""
-    RESEND_FROM_EMAIL: str = "WebBook <onboarding@resend.dev>"
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 465
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_NAME: str = "WebBook"
+    SMTP_FROM_EMAIL: str = ""
     FRONTEND_URL: str = "https://webbookf.vercel.app"
     DEBUG: bool = False
     CORS_ORIGINS: str | list[str] = [
@@ -23,6 +27,21 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
+
+    @field_validator("SMTP_PASSWORD", mode="before")
+    @classmethod
+    def normaliser_smtp_password(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        # Supprime automatiquement les espaces (ex: code Google "abcd efgh ijkl mnop")
+        return "".join(value.split())
+
+    @field_validator("SMTP_USER", mode="before")
+    @classmethod
+    def normaliser_smtp_user(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        return value.strip()
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
