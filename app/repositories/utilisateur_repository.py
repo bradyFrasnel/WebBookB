@@ -36,6 +36,16 @@ class UtilisateurRepository:
         return utilisateur
 
     @staticmethod
+    def update_password(
+        db: Session,
+        utilisateur: Utilisateur,
+        mot_de_passe_hash: str,
+    ) -> Utilisateur:
+        utilisateur.mot_de_passe_hash = mot_de_passe_hash
+        db.flush()
+        return utilisateur
+
+    @staticmethod
     def delete(db: Session, utilisateur: Utilisateur) -> None:
         db.delete(utilisateur)
         db.flush()

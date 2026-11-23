@@ -48,3 +48,37 @@ def decode_access_token(token: str) -> dict[str, Any]:
         )
     except InvalidTokenError as exc:
         raise ValueError("Token invalide ou expiré.") from exc
+
+
+def create_password_reset_token(email: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+    )
+    payload: dict[str, Any] = {
+        "sub": email,
+        "type": "password_reset",
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+    }
+    return jwt.encode(
+        payload,
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+
+def decode_password_reset_token(token: str) -> str:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+        )
+        if payload.get("type") != "password_reset":
+            raise ValueError("Type de jeton invalide.")
+        email = payload.get("sub")
+        if not email:
+            raise ValueError("Jeton incomplet.")
+        return str(email)
+    except InvalidTokenError as exc:
+        raise ValueError("Lien de réinitialisation invalide ou expiré.") from exc

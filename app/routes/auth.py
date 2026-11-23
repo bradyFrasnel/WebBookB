@@ -5,7 +5,13 @@ from app.controllers.auth_controller import AuthController
 from app.core.dependencies import get_current_user
 from app.database.connection import get_db
 from app.models import Utilisateur
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import (
+    LoginRequest,
+    MessageResponse,
+    MotDePasseOublieRequest,
+    ReinitialiserMotDePasseRequest,
+    TokenResponse,
+)
 from app.schemas.utilisateur import UtilisateurCreate, UtilisateurResponse
 
 router = APIRouter(prefix="/api/auth", tags=["Authentification"])
@@ -49,3 +55,31 @@ def me(
     current_user: Utilisateur = Depends(get_current_user),
 ):
     return AuthController.me(current_user)
+
+
+@router.post(
+    "/mot-de-passe-oublie",
+    response_model=MessageResponse,
+    summary="Demander un lien de réinitialisation de mot de passe par email",
+)
+def mot_de_passe_oublie(
+    data: MotDePasseOublieRequest,
+    db: Session = Depends(get_db),
+):
+    return AuthController.mot_de_passe_oublie(db=db, email=data.email)
+
+
+@router.post(
+    "/reinitialiser-mot-de-passe",
+    response_model=MessageResponse,
+    summary="Définir un nouveau mot de passe avec un lien de réinitialisation",
+)
+def reinitialiser_mot_de_passe(
+    data: ReinitialiserMotDePasseRequest,
+    db: Session = Depends(get_db),
+):
+    return AuthController.reinitialiser_mot_de_passe(
+        db=db,
+        token=data.token,
+        nouveau_mot_de_passe=data.nouveau_mot_de_passe,
+    )

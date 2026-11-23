@@ -36,3 +36,27 @@ class AuthController:
     @staticmethod
     def me(current_user: Utilisateur) -> Utilisateur:
         return current_user
+
+    @staticmethod
+    def mot_de_passe_oublie(db: Session, email: str) -> dict[str, str]:
+        AuthService.demander_reinitialisation_mot_de_passe(db, email)
+        return {
+            "message": "Si cette adresse email est associée à un compte, un lien de réinitialisation vous a été envoyé par email."
+        }
+
+    @staticmethod
+    def reinitialiser_mot_de_passe(
+        db: Session, token: str, nouveau_mot_de_passe: str
+    ) -> dict[str, str]:
+        try:
+            AuthService.reinitialiser_mot_de_passe(
+                db, token, nouveau_mot_de_passe
+            )
+            return {
+                "message": "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter."
+            }
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc

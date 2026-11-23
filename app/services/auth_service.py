@@ -6,6 +6,8 @@ from app.core.exceptions import (
 )
 from app.core.security import (
     create_access_token,
+    create_password_reset_token,
+    decode_password_reset_token,
     hash_password,
     verify_password,
 )
@@ -14,6 +16,7 @@ from app.repositories.categorie_repository import CategorieRepository
 from app.repositories.utilisateur_repository import UtilisateurRepository
 from app.schemas.auth import TokenResponse
 from app.schemas.utilisateur import UtilisateurCreate
+from app.services.email_service import EmailService
 
 CATEGORIES_PREDEFINIES: list[str] = [
     "Professionnel",
@@ -79,3 +82,29 @@ class AuthService:
             subject=str(utilisateur.id_utilisateur)
         )
         return TokenResponse(access_token=access_token, token_type="bearer")
+
+    @staticmethod
+    def demander_reinitialisation_mot_de_passe(db: Session, email: str) -> None:
+        email_normalise = email.strip().lower()
+        utilisateur = UtilisateurRepository.get_by_email(db, email_normalise)
+        if utilisateur is not None:
+            token = create_password_reset_token(utilisateur.email)
+            EmailService.send_password_reset_email(utilisateur.email, token)
+
+    @staticmethod
+    def reinitialiser_mot_de_passe(
+        db: Session, token: str, nouveau_mot_de_passe: str
+    ) -> None:
+        if len(nouveau_mot_de_passe) < 8:
+            raise ValueError(
+                "Le nouveau mot de passe doit comporter au moins 8 caractères."
+            )
+
+        email = decode_password_reset_token(token)
+        utilisateur = UtilisateurRepository.get_by_email(db, email)
+        if utilisateur is None:
+            raise ValueError("Compte utilisateur introuvable.")
+
+        nouveau_hash = hash_password(nouveau_mot_de_passe)
+        UtilisateurRepository.update_password(db, utilisateur, nouveau_hash)
+        db.commit()
