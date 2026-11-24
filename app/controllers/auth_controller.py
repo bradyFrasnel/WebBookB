@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import (
     EmailDejaUtiliseError,
+    EnvoiEmailError,
     IdentifiantsInvalidesError,
+    RessourceIntrouvableError,
 )
 from app.models import Utilisateur
 from app.schemas.auth import TokenResponse
@@ -39,10 +41,23 @@ class AuthController:
 
     @staticmethod
     def mot_de_passe_oublie(db: Session, email: str) -> dict[str, str]:
-        AuthService.demander_reinitialisation_mot_de_passe(db, email)
-        return {
-            "message": "Si cette adresse email est associée à un compte, un lien de réinitialisation vous a été envoyé par email."
-        }
+        try:
+            destinataire = AuthService.demander_reinitialisation_mot_de_passe(
+                db, email
+            )
+            return {
+                "message": f"Un lien vous a été envoyé à l'adresse {destinataire}."
+            }
+        except RessourceIntrouvableError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=exc.message,
+            ) from exc
+        except EnvoiEmailError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=exc.message,
+            ) from exc
 
     @staticmethod
     def reinitialiser_mot_de_passe(

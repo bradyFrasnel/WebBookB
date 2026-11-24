@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import (
     EmailDejaUtiliseError,
     IdentifiantsInvalidesError,
+    RessourceIntrouvableError,
 )
 from app.core.security import (
     create_access_token,
@@ -84,12 +85,16 @@ class AuthService:
         return TokenResponse(access_token=access_token, token_type="bearer")
 
     @staticmethod
-    def demander_reinitialisation_mot_de_passe(db: Session, email: str) -> None:
+    def demander_reinitialisation_mot_de_passe(db: Session, email: str) -> str:
         email_normalise = email.strip().lower()
         utilisateur = UtilisateurRepository.get_by_email(db, email_normalise)
-        if utilisateur is not None:
-            token = create_password_reset_token(utilisateur.email)
-            EmailService.send_password_reset_email(utilisateur.email, token)
+        if utilisateur is None:
+            raise RessourceIntrouvableError(
+                "Aucun compte n'est rattaché à cette adresse mail."
+            )
+        token = create_password_reset_token(utilisateur.email)
+        EmailService.send_password_reset_email(utilisateur.email, token)
+        return utilisateur.email
 
     @staticmethod
     def reinitialiser_mot_de_passe(

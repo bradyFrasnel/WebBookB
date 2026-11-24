@@ -24,3 +24,7 @@ class ConflitMetierError(WebBookError):
 
 class ValidationMetierError(WebBookError):
     """Levée lorsqu'une règle de validation métier n'est pas respectée."""
+
+
+class EnvoiEmailError(WebBookError):
+    """Levée lorsque l'envoi d'un email transactionnel échoue."""
