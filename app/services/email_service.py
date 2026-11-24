@@ -1,8 +1,9 @@
-import logging
-import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
+import html
+import logging
+import smtplib
 
 import httpx
 
@@ -122,6 +123,7 @@ class EmailService:
             f"L'équipe WebBook"
         )
 
+        safe_reset_url = html.escape(reset_url, quote=True)
         html_content = f"""
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #0f172a; background-color: #f8fafc;">
             <div style="text-align: center; margin-bottom: 24px;">
@@ -134,17 +136,17 @@ class EmailService:
                     Vous avez demandé la réinitialisation du mot de passe de votre compte WebBook. Cliquez sur le bouton ci-dessous pour en définir un nouveau :
                 </p>
                 <div style="text-align: center; margin: 28px 0;">
-                    <a href="{reset_url}" style="background-color: #4f46e5; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block;">
+                    <a href="{safe_reset_url}" style="background-color: #4f46e5; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block;">
                         Réinitialiser mon mot de passe
                     </a>
                 </div>
                 <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
-                    Ce lien est valable pendant <strong>{settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes</strong>. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email en toute sécurité.
+                    Ce lien est valable pendant <strong>{int(settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)} minutes</strong> et à usage unique. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email en toute sécurité.
                 </p>
                 <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
                 <p style="font-size: 12px; color: #94a3b8; word-break: break-all;">
                     Si le bouton ne fonctionne pas, copiez-collez cette adresse dans votre navigateur :<br />
-                    <a href="{reset_url}" style="color: #4f46e5;">{reset_url}</a>
+                    <a href="{safe_reset_url}" style="color: #4f46e5;">{safe_reset_url}</a>
                 </p>
             </div>
         </div>

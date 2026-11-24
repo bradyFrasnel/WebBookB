@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from app.core.audit_logger import log_security_event, mask_email
 from app.core.exceptions import (
     EmailDejaUtiliseError,
     IdentifiantsInvalidesError,
@@ -70,6 +71,11 @@ class UtilisateurService:
             )
             db.flush()
             db.commit()
+            log_security_event(
+                "AUTH_PASSWORD_CHANGED",
+                user_id=current_user.id_utilisateur,
+                email=mask_email(current_user.email),
+            )
         except Exception:
             db.rollback()
             raise
@@ -79,9 +85,14 @@ class UtilisateurService:
         db: Session,
         current_user: Utilisateur,
     ) -> None:
+        user_id = current_user.id_utilisateur
+        email_masked = mask_email(current_user.email)
         try:
             UtilisateurRepository.delete(db, current_user)
             db.commit()
+            log_security_event(
+                "ACCOUNT_DELETED", user_id=user_id, email=email_masked
+            )
         except Exception:
             db.rollback()
             raise

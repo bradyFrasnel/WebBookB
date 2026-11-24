@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+import hashlib
+import hmac
 from typing import Any
 
 import jwt
@@ -18,19 +20,30 @@ def verify_password(mot_de_passe_clair: str, mot_de_passe_hash: str) -> bool:
     return password_hash.verify(mot_de_passe_clair, mot_de_passe_hash)
 
 
+def _compute_password_fingerprint(mot_de_passe_hash: str) -> str:
+    """Empreinte dérivée du hash actuel permettant d'invalider un lien dès son premier usage."""
+    return hmac.new(
+        settings.SECRET_KEY.encode("utf-8"),
+        mot_de_passe_hash.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()[:16]
+
+
 def create_access_token(
     subject: str,
     expires_delta: timedelta | None = None,
 ) -> str:
-    expire = datetime.now(timezone.utc) + (
+    now = datetime.now(timezone.utc)
+    expire = now + (
         expires_delta
         if expires_delta is not None
         else timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     payload: dict[str, Any] = {
         "sub": subject,
+        "type": "access",
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": now,
     }
     return jwt.encode(
         payload,
@@ -41,25 +54,33 @@ def create_access_token(
 
 def decode_access_token(token: str) -> dict[str, Any]:
     try:
-        return jwt.decode(
+        payload = jwt.decode(
             token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM],
         )
+        # Empêche toute confusion de type (ex: utilisation d'un jeton password_reset comme session)
+        token_type = payload.get("type")
+        if token_type not in (None, "access"):
+            raise ValueError("Type de jeton invalide pour l'authentification.")
+        return payload
     except InvalidTokenError as exc:
         raise ValueError("Token invalide ou expiré.") from exc
 
 
-def create_password_reset_token(email: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
+def create_password_reset_token(email: str, mot_de_passe_hash: str = "") -> str:
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(
         minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
     )
     payload: dict[str, Any] = {
         "sub": email,
         "type": "password_reset",
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": now,
     }
+    if mot_de_passe_hash:
+        payload["pwd_fp"] = _compute_password_fingerprint(mot_de_passe_hash)
     return jwt.encode(
         payload,
         settings.SECRET_KEY,
@@ -67,7 +88,7 @@ def create_password_reset_token(email: str) -> str:
     )
 
 
-def decode_password_reset_token(token: str) -> str:
+def decode_password_reset_token(token: str) -> tuple[str, str | None]:
     try:
         payload = jwt.decode(
             token,
@@ -79,6 +100,16 @@ def decode_password_reset_token(token: str) -> str:
         email = payload.get("sub")
         if not email:
             raise ValueError("Jeton incomplet.")
-        return str(email)
+        pwd_fp = payload.get("pwd_fp")
+        return str(email), (str(pwd_fp) if pwd_fp else None)
     except InvalidTokenError as exc:
         raise ValueError("Lien de réinitialisation invalide ou expiré.") from exc
+
+
+def is_reset_token_still_unused(
+    token_pwd_fp: str | None, current_mot_de_passe_hash: str
+) -> bool:
+    if token_pwd_fp is None:
+        return True
+    expected_fp = _compute_password_fingerprint(current_mot_de_passe_hash)
+    return hmac.compare_digest(token_pwd_fp, expected_fp)

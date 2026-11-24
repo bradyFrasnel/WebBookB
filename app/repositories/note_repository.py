@@ -28,18 +28,24 @@ class NoteRepository:
             stmt = stmt.where(Note.epingle == epingle)
 
         if q is not None and q.strip():
-            terme = f"%{q.strip()}%"
+            escaped = (
+                q.strip()
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+            )
+            terme = f"%{escaped}%"
             stmt = stmt.where(
                 or_(
-                    Note.titre.ilike(terme),
-                    Note.contenu.ilike(terme),
+                    Note.titre.ilike(terme, escape="\\"),
+                    Note.contenu.ilike(terme, escape="\\"),
                 )
             )
 
         stmt = stmt.order_by(
             Note.epingle.desc(),
             Note.date_modification.desc(),
-        )
+        ).limit(500)
         return list(db.execute(stmt).scalars().all())
 
     @staticmethod

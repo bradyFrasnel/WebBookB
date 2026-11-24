@@ -28,16 +28,22 @@ class SiteRepository:
             stmt = stmt.where(Site.favori == favori)
 
         if q is not None and q.strip():
-            terme = f"%{q.strip()}%"
+            escaped = (
+                q.strip()
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+            )
+            terme = f"%{escaped}%"
             stmt = stmt.where(
                 or_(
-                    Site.nom.ilike(terme),
-                    Site.url.ilike(terme),
-                    Site.note_personnelle.ilike(terme),
+                    Site.nom.ilike(terme, escape="\\"),
+                    Site.url.ilike(terme, escape="\\"),
+                    Site.note_personnelle.ilike(terme, escape="\\"),
                 )
             )
 
-        stmt = stmt.order_by(Site.favori.desc(), Site.date_creation.desc())
+        stmt = stmt.order_by(Site.favori.desc(), Site.date_creation.desc()).limit(500)
         return list(db.execute(stmt).scalars().all())
 
     @staticmethod

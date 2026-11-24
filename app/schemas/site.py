@@ -1,8 +1,12 @@
 from datetime import datetime
+import re
 from urllib.parse import urlparse
 import uuid
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+_SCHEME_PREFIX_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
+_FORBIDDEN_URL_CHARS_RE = re.compile(r"[\s<>\"'\\\x00-\x1f\x7f]")
 
 
 def _valider_et_normaliser_url(value: str) -> str:
@@ -10,15 +14,37 @@ def _valider_et_normaliser_url(value: str) -> str:
     if not cleaned:
         raise ValueError("L'URL ne peut pas être vide.")
 
+    if _FORBIDDEN_URL_CHARS_RE.search(cleaned):
+        raise ValueError("L'URL contient des caractères non autorisés.")
+
+    # Bloque explicitement tout schéma dangereux (javascript:, data:, vbscript:, file:, etc.)
+    if _SCHEME_PREFIX_RE.match(cleaned) and not cleaned.lower().startswith(
+        ("http://", "https://")
+    ):
+        raise ValueError(
+            "Seules les adresses commençant par http:// ou https:// sont autorisées."
+        )
+
     if "://" not in cleaned:
         cleaned = f"https://{cleaned}"
 
-    parsed = urlparse(cleaned)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+    try:
+        parsed = urlparse(cleaned)
+        _ = parsed.port  # Vérifie que le port éventuel est un entier valide
+    except ValueError as exc:
+        raise ValueError("Format d'URL invalide.") from exc
+
+    if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
         raise ValueError(
             "L'URL doit être une adresse HTTP ou HTTPS valide (ex: https://exemple.com)."
         )
-    if "." not in parsed.netloc and parsed.hostname != "localhost":
+
+    if parsed.username or parsed.password:
+        raise ValueError(
+            "Les identifiants intégrés dans l'URL ne sont pas autorisés."
+        )
+
+    if "." not in parsed.hostname and parsed.hostname.lower() != "localhost":
         raise ValueError("Le domaine de l'URL est invalide.")
 
     return cleaned

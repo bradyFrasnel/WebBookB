@@ -1,9 +1,9 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    mot_de_passe: str
+    mot_de_passe: str = Field(min_length=1, max_length=128)
 
 
 class TokenResponse(BaseModel):
@@ -16,8 +16,8 @@ class MotDePasseOublieRequest(BaseModel):
 
 
 class ReinitialiserMotDePasseRequest(BaseModel):
-    token: str
-    nouveau_mot_de_passe: str
+    token: str = Field(min_length=10, max_length=2048)
+    nouveau_mot_de_passe: str = Field(min_length=8, max_length=128)
 
 
 class MessageResponse(BaseModel):

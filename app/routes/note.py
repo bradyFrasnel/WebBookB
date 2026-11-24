@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/notes", tags=["Notes personnelles"])
 def list_notes(
     q: str | None = Query(
         default=None,
+        max_length=200,
         description="Recherche par titre ou contenu de la note",
     ),
     id_site: uuid.UUID | None = Query(

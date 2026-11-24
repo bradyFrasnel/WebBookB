@@ -22,6 +22,7 @@ router = APIRouter(prefix="/api/sites", tags=["Sites"])
 def list_sites(
     q: str | None = Query(
         default=None,
+        max_length=200,
         description="Recherche par nom, URL ou note personnelle du site",
     ),
     id_categorie: uuid.UUID | None = Query(
@@ -52,6 +53,7 @@ def list_sites(
 def list_favoris(
     q: str | None = Query(
         default=None,
+        max_length=200,
         description="Recherche parmi les favoris par nom, URL ou note",
     ),
     db: Session = Depends(get_db),
