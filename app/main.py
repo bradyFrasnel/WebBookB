@@ -80,7 +80,12 @@ def accueil():
 
 @app.api_route("/health", methods=["GET", "HEAD"], tags=["Santé"])
 def health_check():
-    return {"status": "healthy", "app": settings.APP_NAME}
+    return {
+        "status": "healthy",
+        "app": settings.APP_NAME,
+        "version": "1.2.0",
+        "smtp_configured": bool(settings.SMTP_USER and settings.SMTP_PASSWORD),
+    }
 
 
 @app.api_route("/test-db", methods=["GET", "HEAD"], tags=["Santé"])

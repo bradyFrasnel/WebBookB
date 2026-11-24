@@ -28,20 +28,38 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    @field_validator("SMTP_HOST", mode="before")
+    @classmethod
+    def normaliser_smtp_host(cls, value: Any) -> str:
+        if not isinstance(value, str) or not value.strip():
+            return "smtp.gmail.com"
+        return value.strip().strip('"').strip("'").lower()
+
+    @field_validator("SMTP_PORT", mode="before")
+    @classmethod
+    def normaliser_smtp_port(cls, value: Any) -> int:
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            cleaned = value.strip().strip('"').strip("'")
+            if cleaned.isdigit():
+                return int(cleaned)
+        return 465
+
     @field_validator("SMTP_PASSWORD", mode="before")
     @classmethod
     def normaliser_smtp_password(cls, value: Any) -> str:
         if not isinstance(value, str):
             return ""
-        # Supprime automatiquement les espaces (ex: code Google "abcd efgh ijkl mnop")
-        return "".join(value.split())
+        # Supprime automatiquement les espaces et guillemets éventuels
+        return "".join(value.strip().strip('"').strip("'").split())
 
     @field_validator("SMTP_USER", mode="before")
     @classmethod
     def normaliser_smtp_user(cls, value: Any) -> str:
         if not isinstance(value, str):
             return ""
-        return value.strip()
+        return value.strip().strip('"').strip("'")
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
