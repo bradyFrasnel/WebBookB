@@ -73,6 +73,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
+    expose_headers=["Retry-After"],
 )
 
 

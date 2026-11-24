@@ -1,12 +1,15 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from app.core.audit_logger import log_security_event
 from app.core.exceptions import (
     EmailDejaUtiliseError,
     EnvoiEmailError,
     IdentifiantsInvalidesError,
     RessourceIntrouvableError,
 )
+from app.core.rate_limit import get_client_ip, login_tracker
 from app.models import Utilisateur
 from app.schemas.auth import TokenResponse
 from app.schemas.utilisateur import UtilisateurCreate
@@ -25,13 +28,39 @@ class AuthController:
             ) from exc
 
     @staticmethod
-    def login(db: Session, email: str, mot_de_passe: str) -> TokenResponse:
+    def login(
+        db: Session,
+        email: str,
+        mot_de_passe: str,
+        request: Request | None = None,
+    ) -> TokenResponse | JSONResponse:
+        client_ip = get_client_ip(request) if request is not None else "local"
         try:
-            return AuthService.login(db, email, mot_de_passe)
+            token_resp = AuthService.login(db, email, mot_de_passe)
+            login_tracker.record_success(client_ip)
+            return token_resp
         except IdentifiantsInvalidesError as exc:
+            locked, retry_after, remaining = login_tracker.record_failure(
+                client_ip
+            )
+            if locked:
+                log_security_event(
+                    "LOGIN_LOCKOUT_TRIGGERED",
+                    ip=client_ip,
+                    retry_after=retry_after,
+                )
+                return JSONResponse(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    headers={"Retry-After": str(retry_after)},
+                    content={
+                        "detail": "Trop de tentatives infructueuses (5/5). Veuillez patienter 5 minutes avant de réessayer.",
+                        "retry_after": retry_after,
+                    },
+                )
+            plural = "s" if remaining > 1 else ""
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=exc.message,
+                detail=f"{exc.message} ({remaining} tentative{plural} restante{plural})",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from exc
 

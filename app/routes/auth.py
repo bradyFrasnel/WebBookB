@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
 from app.controllers.auth_controller import AuthController
@@ -37,12 +37,14 @@ def register(
 )
 def login(
     data: LoginRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     return AuthController.login(
         db=db,
         email=data.email,
         mot_de_passe=data.mot_de_passe,
+        request=request,
     )
 
 
